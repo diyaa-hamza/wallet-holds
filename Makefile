@@ -10,7 +10,7 @@ test:
 	go test ./...
 
 ledger-up:
-	docker compose -f walletest/docker-compose.yml up -d --wait
+	docker compose -f walletest/docker-compose.yml up -d --wait && walletest/wait-for-ledger.sh
 
 ledger-down:
 	docker compose -f walletest/docker-compose.yml down -v

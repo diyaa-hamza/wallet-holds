@@ -96,7 +96,7 @@ LEDGER_URL=http://127.0.0.1:3068 LEDGER_NAME=wallets BIND=127.0.0.1:8090 HOLD_EX
 The suite runs against a real ledger:
 
 ```sh
-docker compose -f walletest/docker-compose.yml up -d --wait
+docker compose -f walletest/docker-compose.yml up -d --wait && walletest/wait-for-ledger.sh
 WALLET_HOLDS_TEST_URL=http://127.0.0.1:3068 go test ./...
 docker compose -f walletest/docker-compose.yml down -v
 ```
