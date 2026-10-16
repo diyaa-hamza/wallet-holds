@@ -1,0 +1,23 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: docker compose -f walletest/docker-compose.yml up -d --wait
+      - run: go test ./...
+        env:
+          WALLET_HOLDS_TEST_URL: http://127.0.0.1:3068
+      - if: always()
+        run: docker compose -f walletest/docker-compose.yml down -v

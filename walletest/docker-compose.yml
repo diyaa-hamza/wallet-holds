@@ -1,0 +1,36 @@
+# A Formance Ledger for the test suite and local play. Binds to 127.0.0.1 only.
+#   docker compose -f walletest/docker-compose.yml up -d --wait
+#   WALLET_HOLDS_TEST_URL=http://127.0.0.1:3068 go test ./...
+#   docker compose -f walletest/docker-compose.yml down -v
+name: wallet-holds-test
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+      POSTGRES_DB: ledger
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  ledger:
+    image: ghcr.io/formancehq/ledger:v2.4.15
+    command: ["serve", "--worker"]
+    environment:
+      POSTGRES_URI: postgresql://ledger:ledger@postgres/ledger?sslmode=disable
+      AUTO_UPGRADE: "true"
+      BIND: 0.0.0.0:3068
+    ports:
+      - "127.0.0.1:3068:3068"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3068/_healthcheck"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
