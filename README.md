@@ -47,6 +47,10 @@ svc.Capture(ctx, wallet.CaptureRequest{WalletID: customerID, Processor: "proc", 
 svc.Settle(ctx, wallet.SettleRequest{Processor: "proc", FileID: fileID, Money: wallet.Money{Asset: "KWD/3", Amount: 3_900}})
 ```
 
+Assets and amounts follow the ledger's notation: `KWD/3` is Kuwaiti dinar with three decimal
+places, and an amount is an integer in the smallest unit, so `4_000` of `KWD/3` is 4.000 KWD
+and `1_050` of `USD/2` is 10.50 USD. There are no floats anywhere.
+
 Operations: `Credit`, `Debit`, `Transfer`, `Convert`, `Authorize`, `Capture`, `Release`,
 `Expire`, `ForceDebit`, `Settle`; reads: `Balances`, `Hold`, `Holds`, `OpenHolds`, `Statement`.
 `holds.Sweeper` releases holds past their expiry; run it from any scheduler.
@@ -85,11 +89,79 @@ to`, account metadata in the transaction, `Idempotency-Key`.
 ## The HTTP API and walletd
 
 `httpapi.Handler(svc)` serves the operations as JSON (routes and error codes in its package
-comment). `cmd/walletd` runs it on one ledger with the sweeper on an interval:
+comment). `cmd/walletd` runs it on one ledger with the sweeper on an interval. It is configured
+by environment:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LEDGER_URL` | `http://127.0.0.1:3068` | the Formance Ledger server |
+| `LEDGER_NAME` | `wallets` | the ledger; created if missing |
+| `BIND` | `127.0.0.1:8090` | the listen address |
+| `HOLD_EXPIRY` | `168h` | how long a hold lives when the authorization does not say |
+| `SWEEP_INTERVAL` | `1m` | how often expired holds are released; `0` disables the sweeper |
+
+The API has no authentication of its own. Run it behind your own service or gateway and never
+expose it to an untrusted network.
+
+### Try it
+
+Start a ledger and `walletd` (needs Docker and Go):
 
 ```sh
-LEDGER_URL=http://127.0.0.1:3068 LEDGER_NAME=wallets BIND=127.0.0.1:8090 HOLD_EXPIRY=168h go run ./cmd/walletd
+make ledger-up        # a Formance Ledger on 127.0.0.1:3068
+go run ./cmd/walletd  # the API on 127.0.0.1:8090
 ```
+
+Top up a wallet with 10.000 KWD. The source is an external account, so it is allowed to go
+negative (`"kind": 2` is `Unbounded`; `0` refuses and `1` takes a `limit`):
+
+```sh
+curl -X POST http://127.0.0.1:8090/v1/wallets/alice/credits -H 'Content-Type: application/json' -d '{
+  "source": "psp:collected",
+  "money": {"asset": "KWD/3", "amount": 10000},
+  "reference": "topup:pay_1",
+  "sourceOverdraft": {"kind": 2}
+}'
+```
+
+Hold 4.000 KWD for a card authorization, then look at the wallet:
+
+```sh
+curl -X POST http://127.0.0.1:8090/v1/wallets/alice/authorizations -H 'Content-Type: application/json' -d '{
+  "processor": "proc", "authId": "auth_1",
+  "money": {"asset": "KWD/3", "amount": 4000}
+}'
+
+curl http://127.0.0.1:8090/v1/wallets/alice
+```
+
+```json
+{"balances":{"KWD/3":6000},"holds":[{"walletId":"alice","processor":"proc","authId":"auth_1","asset":"KWD/3","amount":4000,"remaining":4000,"status":"open","expiresAt":"2026-11-17T08:34:13Z","destination":"issuer:proc:settlement"}],"id":"alice"}
+```
+
+Capture 3.900 KWD and say it is final. The remaining 0.100 goes back to the wallet in the
+same transaction:
+
+```sh
+curl -X POST http://127.0.0.1:8090/v1/wallets/alice/authorizations/auth_1/captures -H 'Content-Type: application/json' -d '{
+  "processor": "proc", "clearingId": "clr_1",
+  "money": {"asset": "KWD/3", "amount": 3900},
+  "final": true
+}'
+```
+
+```json
+{"txId":3,"reference":"capture:proc:clr_1","replayed":false,"postings":[
+  {"source":"wallet:alice:hold:auth_1","destination":"issuer:proc:settlement","amount":3900,"asset":"KWD/3"},
+  {"source":"wallet:alice:hold:auth_1","destination":"wallet:alice:main","amount":100,"asset":"KWD/3"}]}
+```
+
+The wallet now holds 6.100 KWD and has no open hold. Send the same capture again and you get
+`200` with `"replayed": true` and the same transaction, instead of `201`: nothing is booked
+twice. An authorization for more than the balance is answered `409` with
+`{"code": "insufficient_funds", ...}`.
+
+Stop the ledger with `make ledger-down`.
 
 ## Tests
 
