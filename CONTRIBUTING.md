@@ -1,6 +1,7 @@
 # Contributing
 
-Issues and pull requests are welcome.
+Issues and pull requests are welcome. Everyone taking part is expected to follow the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you open a pull request
 
