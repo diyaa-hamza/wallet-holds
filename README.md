@@ -18,6 +18,23 @@ Status: in development. Releases are v0.x and the API may still change between t
 
 This is an independent project. It is not affiliated with or endorsed by Formance.
 
+## How it relates to Formance Wallets
+
+Formance publishes its own [Wallets](https://github.com/formancehq/wallets) service on the
+same ledger. Its source is public, but at the time of writing it is under the Formance
+Enterprise Edition licence, which allows copies for development and testing and asks for an
+agreement with Formance for production use. Read that licence yourself before relying on this
+summary.
+
+wallet-holds is a separate codebase written from scratch and shares no code with it:
+
+- It is MIT licensed, for any use, including production.
+- It needs only the Formance Ledger v2, which is itself MIT licensed.
+- It is a Go package you import, with `walletd` as an optional small HTTP service around it.
+- It covers the card-issuing flow end to end: authorization holds, partial and final captures,
+  forced debits with an explicit overdraft policy, settlement with the processor, and
+  conversions between assets.
+
 ## Use it from Go
 
 ```sh
@@ -113,14 +130,15 @@ go run ./cmd/walletd  # the API on 127.0.0.1:8090
 ```
 
 Top up a wallet with 10.000 KWD. The source is an external account, so it is allowed to go
-negative (`"kind": 2` is `Unbounded`; `0` refuses and `1` takes a `limit`):
+negative. The overdraft kinds are `"refuse"` (the default), `"unbounded"` and `"up_to"` with a
+`"limit": {"asset", "amount"}`:
 
 ```sh
 curl -X POST http://127.0.0.1:8090/v1/wallets/alice/credits -H 'Content-Type: application/json' -d '{
   "source": "psp:collected",
   "money": {"asset": "KWD/3", "amount": 10000},
   "reference": "topup:pay_1",
-  "sourceOverdraft": {"kind": 2}
+  "sourceOverdraft": {"kind": "unbounded"}
 }'
 ```
 
