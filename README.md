@@ -14,7 +14,7 @@ retry replays and never books twice; the open holds are the hold accounts with a
 `status: open` in their metadata; nothing lives outside the ledger. The wallet id is opaque:
 the caller maps its customers, phone numbers or account numbers to it.
 
-Status: in development. There is no tagged release yet and the API may still change.
+Status: in development. Releases are v0.x and the API may still change between them.
 
 This is an independent project. It is not affiliated with or endorsed by Formance.
 

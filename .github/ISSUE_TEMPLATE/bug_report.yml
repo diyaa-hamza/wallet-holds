@@ -1,0 +1,54 @@
+name: Bug report
+description: Something books, holds or reports money differently from what the README says
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a security problem (double booking, overspending, touching another wallet's hold),
+        do not open an issue. Report it privately as described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: wallet-holds version
+      description: A tag or a commit hash.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: ledger
+    attributes:
+      label: Formance Ledger version
+      placeholder: v2.4.15
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How do you call it?
+      options:
+        - Go package
+        - HTTP API (httpapi / walletd)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The operations in order, with their requests. Replace real wallet ids and references.
+      render: go
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The error or the balances, holds and postings you got.
+    validations:
+      required: true
