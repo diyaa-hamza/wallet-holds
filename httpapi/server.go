@@ -14,6 +14,9 @@
 //	POST /v1/settlements                   SettleRequest
 //	GET  /healthz
 //
+// An overdraft policy (sourceOverdraft on credits, overdraft on force-debits) is
+// {"kind": "refuse" | "unbounded" | "up_to", "limit": {"asset", "amount"}}; limit is for up_to.
+//
 // Errors are {"code", "message"}: invalid_request 400, hold_not_found 404, insufficient_funds,
 // hold_closed, hold_exceeded and conflict 409, rejected 422, ledger_unavailable 503.
 package httpapi

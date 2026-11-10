@@ -1,7 +1,9 @@
 package wallet
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/diyaa-hamza/wallet-holds/ledger"
@@ -24,6 +26,52 @@ const (
 	// OverdraftUnbounded: no limit (external accounts).
 	OverdraftUnbounded
 )
+
+// The names of the kinds in JSON.
+var overdraftKindNames = map[OverdraftKind]string{
+	OverdraftRefuse: "refuse", OverdraftUpTo: "up_to", OverdraftUnbounded: "unbounded",
+}
+
+// String is the JSON name of the kind.
+func (k OverdraftKind) String() string {
+	if n, ok := overdraftKindNames[k]; ok {
+		return n
+	}
+	return "OverdraftKind(" + strconv.Itoa(int(k)) + ")"
+}
+
+// MarshalJSON writes the kind as "refuse", "up_to" or "unbounded".
+func (k OverdraftKind) MarshalJSON() ([]byte, error) {
+	n, ok := overdraftKindNames[k]
+	if !ok {
+		return nil, fmt.Errorf("%w: overdraft kind %d", ErrInvalid, int(k))
+	}
+	return json.Marshal(n)
+}
+
+// UnmarshalJSON reads the name of a kind. The numbers 0, 1 and 2 that v0.1.0 took are still
+// read.
+func (k *OverdraftKind) UnmarshalJSON(b []byte) error {
+	var name string
+	if err := json.Unmarshal(b, &name); err == nil {
+		for kind, n := range overdraftKindNames {
+			if n == name {
+				*k = kind
+				return nil
+			}
+		}
+		return fmt.Errorf("%w: overdraft kind %q (refuse, up_to or unbounded)", ErrInvalid, name)
+	}
+	var n int
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("%w: overdraft kind %s", ErrInvalid, b)
+	}
+	if _, ok := overdraftKindNames[OverdraftKind(n)]; !ok {
+		return fmt.Errorf("%w: overdraft kind %d", ErrInvalid, n)
+	}
+	*k = OverdraftKind(n)
+	return nil
+}
 
 // NoOverdraft, Unbounded and UpTo build the three policies.
 var (
